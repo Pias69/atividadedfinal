@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EcoFactory OS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- 1. SIDEBAR LATERAL -->
+    <aside class="sidebar">
+      <div>
+        <div class="brand">
+          <div class="brand-logo">🏭</div>
+          <div>
+            <h2>FactoryOS</h2>
+            <span>Eco System v1.0</span>
+          </div>
+        </div>
+
+        <nav class="nav-menu">
+          <button class="nav-btn active" data-tab="dashboard">
+            <span>📊</span> Dashboard
+          </button>
+          <button class="nav-btn" data-tab="maquinas">
+            <span>⚙️</span> Máquinas
+          </button>
+          <button class="nav-btn" data-tab="alertas">
+            <span>🔔</span> Alertas
+          </button>
+          <button class="nav-btn" data-tab="config">
+            <span>🛠️</span> Configurações
+          </button>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-card">
+          <div class="user-details">
+            <strong>Operador Padrão</strong>
+            <span>admin@ecofactory.com</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 2. ÁREA PRINCIPAL DA APLICAÇÃO -->
+    <main class="main-area">
+      
+      <!-- CABEÇALHO DA PÁGINA -->
+      <header class="main-header">
+        <h1 id="page-title">Dashboard Central</h1>
+        <div class="header-actions">
+          <button class="notif-btn" title="Alertas do sistema">
+            🔔 <span class="notif-badge" id="badge-alertas">0</span>
+          </button>
+          <button class="btn-primary" id="btn-open-modal">+ Nova Máquina</button>
+        </div>
+      </header>
+
+      <!-- ABA 1: DASHBOARD CENTRAL -->
+      <div id="view-dashboard" class="tab-view active">
+        <!-- GRID DE CARDS KPI -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-top">
+              <div class="kpi-icon mint">⚡</div>
+              <span class="kpi-arrow">→</span>
+            </div>
+            <h3 id="kpi-online">0 / 0</h3>
+            <p>Máquinas Ativas / Total</p>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-top">
+              <div class="kpi-icon orange">⚠️</div>
+              <span class="kpi-arrow">→</span>
+            </div>
+            <h3 id="kpi-alertas">0</h3>
+            <p>Alertas e Atenção</p>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-top">
+              <div class="kpi-icon blue">📊</div>
+              <span class="kpi-arrow">→</span>
+            </div>
+            <h3 id="kpi-carga">0%</h3>
+            <p>Carga Média Operacional</p>
+          </div>
+        </div>
+
+        <!-- LISTA DE ATIVIDADE RECENTE -->
+        <div class="content-box">
+          <div class="box-header">
+            <h2>Atividade Recente</h2>
+            <span class="live-pill">● Ao Vivo</span>
+          </div>
+          <ul class="activity-list" id="activity-list">
+            <!-- Preenchido via JavaScript -->
+          </ul>
+        </div>
+      </div>
+
+      <!-- ABA 2: GESTÃO DE MÁQUINAS -->
+      <div id="view-maquinas" class="tab-view">
+        <div class="content-box">
+          <div class="box-header">
+            <h2>Gestão de Ativos</h2>
+          </div>
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Setor</th>
+                <th>Status</th>
+                <th>Temperatura</th>
+                <th>Carga</th>
+              </tr>
+            </thead>
+            <tbody id="table-maquinas-body">
+              <!-- Preenchido via JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ABA 3: CENTRAL DE ALERTAS -->
+      <div id="view-alertas" class="tab-view">
+        <div class="content-box">
+          <div class="box-header">
+            <h2>Central de Alertas</h2>
+          </div>
+          <p style="color: var(--text-muted); font-size: 14px;">
+            Exibindo histórico de falhas e leituras fora do limite crítico.
+          </p>
+        </div>
+      </div>
+
+      <!-- ABA 4: CONFIGURAÇÕES DO SISTEMA -->
+      <div id="view-config" class="tab-view">
+        <div class="content-box" style="max-width: 600px;">
+          <div class="box-header">
+            <h2>Configurações do Sistema</h2>
+          </div>
+          
+          <form id="form-configuracoes" class="modal-form">
+            <div class="form-group">
+              <label for="cfg-nome-empresa">Nome da Empresa / Instalação</label>
+              <input type="text" id="cfg-nome-empresa" placeholder="EcoFactory OS">
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-temp-limite">Limite Crítico de Temperatura (°C)</label>
+              <input type="text" id="cfg-temp-limite" placeholder="80">
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-email-alerta">E-mail para Alertas Urgentes</label>
+              <input type="text" id="cfg-email-alerta" placeholder="admin@empresa.com">
+            </div>
+
+            <div class="form-group" style="display: flex; gap: 20px; align-items: center;">
+              <label style="font-weight: normal; cursor: pointer;">
+                <input type="checkbox" id="cfg-notificacoes"> Notificações por E-mail
+              </label>
+              <label style="font-weight: normal; cursor: pointer;">
+                <input type="checkbox" id="cfg-manutencao"> Modo de Manutenção
+              </label>
+            </div>
+
+            <button type="submit" class="btn-primary" style="margin-top: 10px;">Salvar Configurações</button>
+          </form>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- 3. MODAL FLUTUANTE (CADASTRAR MÁQUINA) -->
+  <div class="modal-backdrop hidden" id="modal-form">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title">
+          <div class="modal-icon">+</div>
+          <h3>Cadastrar Nova Máquina</h3>
+        </div>
+        <button class="modal-close" id="btn-close-modal">&times;</button>
+      </div>
+
+      <form id="maquina-form" class="modal-form">
+        <div class="form-group">
+          <label for="nome-input">Nome do Equipamento *</label>
+          <input type="text" id="nome-input" placeholder="Ex: Prensa Hidráulica X" required>
+        </div>
+
+        <div class="form-group">
+          <label for="setor-input">Setor de Operação</label>
+          <input type="text" id="setor-input" placeholder="Ex: Estamparia, Usinagem, etc.">
+        </div>
+
+        <div class="form-group">
+          <label>Status Inicial</label>
+          <div class="status-grid">
+            <div class="status-pill active-online" data-status="online">
+              <span class="status-dot online">◉</span> Online
+            </div>
+            <div class="status-pill" data-status="aguardando">
+              <span class="status-dot aguardando">◉</span> Aguardando
+            </div>
+            <div class="status-pill" data-status="atencao">
+              <span class="status-dot atencao">◉</span> Atenção
+            </div>
+            <div class="status-pill" data-status="offline">
+              <span class="status-dot offline">◉</span> Offline
+            </div>
+          </div>
+        </div>
+
+        <div class="sliders-row">
+          <div class="slider-box">
+            <label>Temperatura: <strong id="temp-val">40°C</strong></label>
+            <input type="range" id="temp-input" min="0" max="120" value="40">
+          </div>
+          <div class="slider-box">
+            <label>Carga Operacional: <strong id="carga-val">0%</strong></label>
+            <input type="range" id="carga-input" min="0" max="100" value="0">
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel-modal">Cancelar</button>
+          <button type="submit" class="btn-primary flex-1">Cadastrar Máquina</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- SCRIPT PRINCIPAL DO FRONT-END -->
+  <script src="app.js"></script>
+</body>
+</html>
