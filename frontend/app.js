@@ -1,49 +1,158 @@
 document.addEventListener('DOMContentLoaded', () => {
   verificarSessao();
   carregarMaquinas();
+  configurarEventosPerfil();
 });
 
 // ==========================================
-// CONTROLE DE AUTENTICAÇÃO E SESSÃO
+// CONTROLE DE SESSÃO E PERFIL
 // ==========================================
 const authModal = document.getElementById('auth-modal');
-const formLogin = document.getElementById('form-login');
-const formCadastro = document.getElementById('form-cadastro');
-
-if (document.getElementById('link-ir-cadastro')) {
-  document.getElementById('link-ir-cadastro').addEventListener('click', (e) => {
-    e.preventDefault();
-    formLogin.style.display = 'none';
-    formCadastro.style.display = 'flex';
-  });
-}
-
-if (document.getElementById('link-ir-login')) {
-  document.getElementById('link-ir-login').addEventListener('click', (e) => {
-    e.preventDefault();
-    formCadastro.style.display = 'none';
-    formLogin.style.display = 'flex';
-  });
-}
+const modalPerfil = document.getElementById('modal-perfil');
 
 function verificarSessao() {
   let usuarioSalvo = JSON.parse(localStorage.getItem('usuarioLogado'));
 
-  // Auto-login de Teste para evitar modal bloqueando a tela inicial
   if (!usuarioSalvo) {
     usuarioSalvo = { id: 1, nome: 'Operador EcoFactory', email: 'operador@ecofactory.com' };
     localStorage.setItem('usuarioLogado', JSON.stringify(usuarioSalvo));
   }
 
   if (authModal) authModal.style.display = 'none';
-  document.getElementById('sidebar-user-nome').innerText = usuarioSalvo.nome;
+  
+  const nomeElem = document.getElementById('sidebar-user-nome');
+  if (nomeElem) nomeElem.innerText = usuarioSalvo.nome;
   
   const inicial = usuarioSalvo.nome ? usuarioSalvo.nome.charAt(0).toUpperCase() : 'U';
-  document.getElementById('header-avatar-initial').innerText = inicial;
+  const avatarElem = document.getElementById('header-avatar-initial');
+  if (avatarElem) avatarElem.innerText = inicial;
+
+  if (usuarioSalvo.foto) {
+    atualizarExibicaoFoto(usuarioSalvo.foto);
+  }
+}
+
+function configurarEventosPerfil() {
+  const btnHeaderPerfil = document.getElementById('btn-header-perfil');
+  const btnSidebarPerfil = document.getElementById('btn-abrir-perfil-sidebar');
+  const btnFecharPerfil = document.getElementById('btn-fechar-perfil');
+  const btnLogout = document.getElementById('btn-logout');
+
+  if (btnHeaderPerfil) btnHeaderPerfil.addEventListener('click', abrirModalPerfil);
+  if (btnSidebarPerfil) btnSidebarPerfil.addEventListener('click', abrirModalPerfil);
+  if (btnFecharPerfil) btnFecharPerfil.addEventListener('click', fecharModalPerfil);
+  if (btnLogout) btnLogout.addEventListener('click', fazerLogout);
+
+  configurarUploadFoto();
+}
+
+function configurarUploadFoto() {
+  const avatarContainer = document.getElementById('avatar-container');
+  const inputFoto = document.getElementById('input-foto-perfil');
+
+  if (!avatarContainer || !inputFoto) return;
+
+  avatarContainer.addEventListener('click', () => inputFoto.click());
+
+  inputFoto.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Image = event.target.result;
+
+      atualizarExibicaoFoto(base64Image);
+
+      const usuario = JSON.parse(localStorage.getItem('usuarioLogado')) || {};
+      usuario.foto = base64Image;
+      localStorage.setItem('usuarioLogado', JSON.stringify(usuario));
+
+      if (usuario.id) {
+        try {
+          await fetch(`/api/perfil/${usuario.id}/foto`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ foto: base64Image })
+          });
+        } catch (err) {
+          console.error('Erro ao salvar foto no servidor:', err);
+        }
+      }
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+function atualizarExibicaoFoto(fotoBase64) {
+  const headerSpan = document.getElementById('header-avatar-initial');
+  const headerImg = document.getElementById('header-avatar-img');
+  const modalSpan = document.getElementById('profile-initials');
+  const modalImg = document.getElementById('profile-img');
+
+  if (fotoBase64) {
+    if (headerImg) { headerImg.src = fotoBase64; headerImg.style.display = 'block'; }
+    if (headerSpan) { headerSpan.style.display = 'none'; }
+    if (modalImg) { modalImg.src = fotoBase64; modalImg.style.display = 'block'; }
+    if (modalSpan) { modalSpan.style.display = 'none'; }
+  } else {
+    if (headerImg) headerImg.style.display = 'none';
+    if (headerSpan) headerSpan.style.display = 'inline';
+    if (modalImg) modalImg.style.display = 'none';
+    if (modalSpan) modalSpan.style.display = 'inline';
+  }
+}
+
+async function abrirModalPerfil() {
+  if (!modalPerfil) return;
+  modalPerfil.classList.remove('hidden');
+  
+  const usuario = JSON.parse(localStorage.getItem('usuarioLogado'));
+  if (!usuario) return;
+
+  try {
+    const res = await fetch(`/api/perfil/${usuario.id}`);
+    if (res.ok) {
+      const dados = await res.json();
+      preencherDadosPerfil(dados.nome, dados.email, dados.id, dados.created_at, dados.foto);
+    } else {
+      preencherDadosPerfil(usuario.nome, usuario.email, usuario.id, null, usuario.foto);
+    }
+  } catch (err) {
+    preencherDadosPerfil(usuario.nome, usuario.email, usuario.id, null, usuario.foto);
+  }
+}
+
+function preencherDadosPerfil(nome, email, id, criadoEm, foto) {
+  const inicial = nome ? nome.charAt(0).toUpperCase() : 'U';
+  document.getElementById('profile-initials').innerText = inicial;
+  document.getElementById('profile-nome').innerText = nome || 'Operador';
+  document.getElementById('profile-email').innerText = email || 'operador@ecofactory.com';
+  document.getElementById('profile-id').innerText = `#${id || 1}`;
+  
+  if (criadoEm) {
+    document.getElementById('profile-data').innerText = new Date(criadoEm).toLocaleDateString('pt-BR');
+  } else {
+    document.getElementById('profile-data').innerText = 'Recente';
+  }
+
+  const usuarioSalvo = JSON.parse(localStorage.getItem('usuarioLogado'));
+  const fotoParaExibir = foto || (usuarioSalvo ? usuarioSalvo.foto : null);
+  atualizarExibicaoFoto(fotoParaExibir);
+}
+
+function fecharModalPerfil() {
+  if (modalPerfil) modalPerfil.classList.add('hidden');
+}
+
+function fazerLogout() {
+  localStorage.removeItem('usuarioLogado');
+  location.reload();
 }
 
 // ==========================================
-// CARREGAR MÁQUINAS E ALERTAS
+// MÁQUINAS E ALERTAS
 // ==========================================
 async function carregarMaquinas() {
   try {
@@ -70,7 +179,6 @@ async function carregarMaquinas() {
       const isAlerta = temp >= 70;
       if (isAlerta) {
         alertasCount++;
-
         if (tbodyAlertas) {
           tbodyAlertas.innerHTML += `
             <tr>
@@ -121,7 +229,6 @@ async function carregarMaquinas() {
       `;
     }
 
-    // Atualiza KPIs do topo
     document.getElementById('sidebar-alert-badge').innerText = alertasCount;
     document.getElementById('header-notif-count').innerText = alertasCount;
     document.getElementById('kpi-alertas-count').innerText = alertasCount;
@@ -137,7 +244,7 @@ async function carregarMaquinas() {
   }
 }
 
-// ADICIONAR E DELETAR MÁQUINA
+// ADICIONAR E EXCLUIR MÁQUINA
 const modalMaquina = document.getElementById('modal-maquina');
 if (document.getElementById('btn-nova-maquina')) {
   document.getElementById('btn-nova-maquina').addEventListener('click', () => modalMaquina.classList.remove('hidden'));
@@ -176,7 +283,7 @@ const titles = {
   'dashboard': 'Painel Geral',
   'maquinas': 'Gerenciamento de Máquinas',
   'producao': 'Controle de Produção',
-  'seguranca': 'Segurança SST (Saúde e Segurança do Trabalho)',
+  'seguranca': 'Segurança SST',
   'alertas': 'Central de Alertas',
   'relatorios': 'Relatórios e Desempenho',
   'config': 'Configurações do Sistema'
