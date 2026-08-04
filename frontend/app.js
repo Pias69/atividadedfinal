@@ -1,243 +1,204 @@
-
-// URLs das APIs da aplicação Node.js
-const API_MAQUINAS = 'http://localhost:3000/api/maquinas';
-const API_CONFIG = 'http://localhost:3000/api/configuracoes';
-
-let maquinas = [];
-let selectedStatus = 'online';
-
-// Elementos do DOM - Formulários e Modais
-const modalForm = document.getElementById('modal-form');
-const btnOpenModal = document.getElementById('btn-open-modal');
-const btnCloseModal = document.getElementById('btn-close-modal');
-const btnCancelModal = document.getElementById('btn-cancel-modal');
-const maquinaForm = document.getElementById('maquina-form');
-const configForm = document.getElementById('form-configuracoes');
-
-const tempInput = document.getElementById('temp-input');
-const tempVal = document.getElementById('temp-val');
-const cargaInput = document.getElementById('carga-input');
-const cargaVal = document.getElementById('carga-val');
-
-const navButtons = document.querySelectorAll('.nav-btn');
-const tabViews = document.querySelectorAll('.tab-view');
-
-// -------------------------------------------------------------
-// 1. NAVEGAÇÃO DE ABAS
-// -------------------------------------------------------------
-navButtons.forEach(btn => {
-  btn.addEventListener('click', () => {
-    const tab = btn.dataset.tab;
-    navButtons.forEach(b => b.classList.remove('active'));
-    tabViews.forEach(v => v.classList.remove('active'));
-
-    btn.classList.add('active');
-    const targetView = document.getElementById(`view-${tab}`);
-    if (targetView) targetView.classList.add('active');
-  });
+document.addEventListener('DOMContentLoaded', () => {
+  verificarSessao();
+  carregarMaquinas();
 });
 
-// -------------------------------------------------------------
-// 2. CONTROLE DO MODAL E SLIDERS
-// -------------------------------------------------------------
-if (btnOpenModal) btnOpenModal.addEventListener('click', () => modalForm.classList.remove('hidden'));
-if (btnCloseModal) btnCloseModal.addEventListener('click', () => modalForm.classList.add('hidden'));
-if (btnCancelModal) btnCancelModal.addEventListener('click', () => modalForm.classList.add('hidden'));
+// ==========================================
+// CONTROLE DE AUTENTICAÇÃO E SESSÃO
+// ==========================================
+const authModal = document.getElementById('auth-modal');
+const formLogin = document.getElementById('form-login');
+const formCadastro = document.getElementById('form-cadastro');
 
-if (tempInput) {
-  tempInput.addEventListener('input', (e) => tempVal.innerText = `${e.target.value}°C`);
-}
-if (cargaInput) {
-  cargaInput.addEventListener('input', (e) => cargaVal.innerText = `${e.target.value}%`);
-}
-
-// Seleção de Status no Modal
-document.querySelectorAll('.status-pill').forEach(pill => {
-  pill.addEventListener('click', () => {
-    document.querySelectorAll('.status-pill').forEach(p => p.className = 'status-pill');
-    selectedStatus = pill.dataset.status;
-    pill.classList.add(`active-${selectedStatus}`);
+if (document.getElementById('link-ir-cadastro')) {
+  document.getElementById('link-ir-cadastro').addEventListener('click', (e) => {
+    e.preventDefault();
+    formLogin.style.display = 'none';
+    formCadastro.style.display = 'flex';
   });
-});
+}
 
-// -------------------------------------------------------------
-// 3. OPERAÇÕES COM MÁQUINAS (FETCH API)
-// -------------------------------------------------------------
+if (document.getElementById('link-ir-login')) {
+  document.getElementById('link-ir-login').addEventListener('click', (e) => {
+    e.preventDefault();
+    formCadastro.style.display = 'none';
+    formLogin.style.display = 'flex';
+  });
+}
 
-// 🟢 GET /api/maquinas - Carregar do MySQL
+function verificarSessao() {
+  let usuarioSalvo = JSON.parse(localStorage.getItem('usuarioLogado'));
+
+  // Auto-login de Teste para evitar modal bloqueando a tela inicial
+  if (!usuarioSalvo) {
+    usuarioSalvo = { id: 1, nome: 'Operador EcoFactory', email: 'operador@ecofactory.com' };
+    localStorage.setItem('usuarioLogado', JSON.stringify(usuarioSalvo));
+  }
+
+  if (authModal) authModal.style.display = 'none';
+  document.getElementById('sidebar-user-nome').innerText = usuarioSalvo.nome;
+  
+  const inicial = usuarioSalvo.nome ? usuarioSalvo.nome.charAt(0).toUpperCase() : 'U';
+  document.getElementById('header-avatar-initial').innerText = inicial;
+}
+
+// ==========================================
+// CARREGAR MÁQUINAS E ALERTAS
+// ==========================================
 async function carregarMaquinas() {
   try {
-    const res = await fetch(API_MAQUINAS);
-    if (!res.ok) throw new Error('Erro ao buscar máquinas');
-    maquinas = await res.json();
-    render();
+    const res = await fetch('/api/maquinas');
+    const maquinas = await res.json();
+
+    const tbodyDash = document.getElementById('tabela-maquinas-dash');
+    const tbodyGerenciador = document.getElementById('tabela-maquinas-gerenciar');
+    const tbodyAlertas = document.getElementById('tabela-alertas');
+
+    if (tbodyDash) tbodyDash.innerHTML = '';
+    if (tbodyGerenciador) tbodyGerenciador.innerHTML = '';
+    if (tbodyAlertas) tbodyAlertas.innerHTML = '';
+
+    let totalTemp = 0;
+    let totalOnline = 0;
+    let alertasCount = 0;
+
+    maquinas.forEach(m => {
+      const temp = Number(m.temperatura || 0);
+      totalTemp += temp;
+      if (m.status === 'online') totalOnline++;
+
+      const isAlerta = temp >= 70;
+      if (isAlerta) {
+        alertasCount++;
+
+        if (tbodyAlertas) {
+          tbodyAlertas.innerHTML += `
+            <tr>
+              <td><span class="tag-status danger">CRÍTICO</span></td>
+              <td><strong>${m.nome}</strong></td>
+              <td>${m.setor}</td>
+              <td><strong style="color: var(--accent-danger);">${temp} °C</strong></td>
+              <td>Sobreaquecimento detectado no sensor.</td>
+              <td><span class="tag-status warning">Ativo</span></td>
+            </tr>
+          `;
+        }
+      }
+
+      if (tbodyDash) {
+        tbodyDash.innerHTML += `
+          <tr>
+            <td><strong>${m.nome}</strong></td>
+            <td>${m.setor}</td>
+            <td><span class="tag-status ${isAlerta ? 'danger' : 'green'}">${isAlerta ? 'Atenção' : m.status}</span></td>
+            <td><strong style="color: ${isAlerta ? 'var(--accent-danger)' : 'inherit'}">${temp}°C</strong></td>
+            <td><button onclick="deletarMaquina(${m.id})" style="background:transparent; border:none; color:var(--accent-danger); font-weight:600; cursor:pointer;">Excluir</button></td>
+          </tr>
+        `;
+      }
+
+      if (tbodyGerenciador) {
+        tbodyGerenciador.innerHTML += `
+          <tr>
+            <td>#${m.id}</td>
+            <td>${m.nome}</td>
+            <td>${m.setor}</td>
+            <td><span class="tag-status green">${m.status}</span></td>
+            <td>${m.consumo || 120} kWh</td>
+            <td><button onclick="deletarMaquina(${m.id})" style="background:var(--accent-danger-light); border: 1px solid #fca5a5; color:var(--accent-danger); padding:4px 10px; border-radius:6px; font-weight:600; cursor:pointer;">Excluir</button></td>
+          </tr>
+        `;
+      }
+    });
+
+    if (alertasCount === 0 && tbodyAlertas) {
+      tbodyAlertas.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">
+            ✅ Nenhum alerta ativo. Todas as máquinas operando em temperatura segura.
+          </td>
+        </tr>
+      `;
+    }
+
+    // Atualiza KPIs do topo
+    document.getElementById('sidebar-alert-badge').innerText = alertasCount;
+    document.getElementById('header-notif-count').innerText = alertasCount;
+    document.getElementById('kpi-alertas-count').innerText = alertasCount;
+    document.getElementById('alert-summary-tag').innerText = `${alertasCount} Ocorrência(s) Crítica(s)`;
+
+    document.getElementById('kpi-total').innerText = maquinas.length;
+    document.getElementById('kpi-online').innerText = totalOnline;
+    const mediaTemp = maquinas.length > 0 ? (totalTemp / maquinas.length).toFixed(1) : 0;
+    document.getElementById('kpi-temp').innerText = `${mediaTemp} °C`;
+
   } catch (err) {
-    console.error("Erro ao carregar máquinas da API:", err);
+    console.error('Erro ao carregar máquinas:', err);
   }
 }
 
-// 🔵 POST /api/maquinas - Criar Nova Máquina
-if (maquinaForm) {
-  maquinaForm.addEventListener('submit', async (e) => {
+// ADICIONAR E DELETAR MÁQUINA
+const modalMaquina = document.getElementById('modal-maquina');
+if (document.getElementById('btn-nova-maquina')) {
+  document.getElementById('btn-nova-maquina').addEventListener('click', () => modalMaquina.classList.remove('hidden'));
+}
+if (document.getElementById('btn-fechar-maquina')) {
+  document.getElementById('btn-fechar-maquina').addEventListener('click', () => modalMaquina.classList.add('hidden'));
+}
+
+if (document.getElementById('form-maquina')) {
+  document.getElementById('form-maquina').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const nome = document.getElementById('maq-nome').value;
+    const setor = document.getElementById('maq-setor').value;
+    const temperatura = document.getElementById('maq-temp').value;
 
-    const novaMaquina = {
-      nome: document.getElementById('nome-input').value,
-      setor: document.getElementById('setor-input').value,
-      status: selectedStatus,
-      temp: tempInput.value,
-      carga: cargaInput.value
-    };
+    await fetch('/api/maquinas', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nome, setor, temperatura })
+    });
 
-    try {
-      const res = await fetch(API_MAQUINAS, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(novaMaquina)
-      });
-
-      if (res.ok) {
-        await carregarMaquinas();
-        maquinaForm.reset();
-        modalForm.classList.add('hidden');
-      } else {
-        const erro = await res.json();
-        alert(`Erro: ${erro.erro}`);
-      }
-    } catch (err) {
-      console.error("Erro ao cadastrar máquina:", err);
-    }
+    modalMaquina.classList.add('hidden');
+    carregarMaquinas();
   });
 }
 
-// 🔴 DELETE /api/maquinas/:id - Remover Máquina
 async function deletarMaquina(id) {
-  if (!confirm("Tem certeza que deseja remover esta máquina?")) return;
-
-  try {
-    const res = await fetch(`${API_MAQUINAS}/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      await carregarMaquinas();
-    } else {
-      alert("Não foi possível excluir a máquina.");
-    }
-  } catch (err) {
-    console.error("Erro ao deletar máquina:", err);
+  if (confirm('Deseja realmente excluir este equipamento?')) {
+    await fetch(`/api/maquinas/${id}`, { method: 'DELETE' });
+    carregarMaquinas();
   }
 }
 
-// Expor a função globalmente para uso no onclick da tabela
-window.deletarMaquina = deletarMaquina;
+// NAVEGAÇÃO ENTRE ABAS
+const titles = {
+  'dashboard': 'Painel Geral',
+  'maquinas': 'Gerenciamento de Máquinas',
+  'producao': 'Controle de Produção',
+  'seguranca': 'Segurança SST (Saúde e Segurança do Trabalho)',
+  'alertas': 'Central de Alertas',
+  'relatorios': 'Relatórios e Desempenho',
+  'config': 'Configurações do Sistema'
+};
 
-// -------------------------------------------------------------
-// 4. OPERAÇÕES COM CONFIGURAÇÕES (FETCH API)
-// -------------------------------------------------------------
+function alternarAba(tabKey) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-view').forEach(t => t.classList.remove('active'));
 
-// 🟢 GET /api/configuracoes - Carregar parâmetros do MySQL
-async function carregarConfiguracoes() {
-  try {
-    const res = await fetch(API_CONFIG);
-    if (!res.ok) return;
+  const btn = document.querySelector(`.nav-btn[data-tab="${tabKey}"]`);
+  if (btn) btn.classList.add('active');
 
-    const config = await res.json();
-    
-    if (document.getElementById('cfg-nome-empresa')) {
-      document.getElementById('cfg-nome-empresa').value = config.nome_empresa || '';
-      document.getElementById('cfg-temp-limite').value = config.temp_limite_alerta || 80;
-      document.getElementById('cfg-email-alerta').value = config.email_alerta || '';
-      document.getElementById('cfg-notificacoes').checked = Boolean(config.notificacoes_email);
-      document.getElementById('cfg-manutencao').checked = Boolean(config.modo_manutencao);
-    }
-  } catch (err) {
-    console.error("Erro ao carregar configurações:", err);
-  }
+  const tabElem = document.getElementById(`tab-${tabKey}`);
+  if (tabElem) tabElem.classList.add('active');
+
+  document.getElementById('page-title').innerText = titles[tabKey] || 'EcoFactory';
 }
 
-// 🟡 PUT /api/configuracoes - Salvar parâmetros no MySQL
-if (configForm) {
-  configForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => alternarAba(btn.dataset.tab));
+});
 
-    const dadosConfig = {
-      nome_empresa: document.getElementById('cfg-nome-empresa').value,
-      temp_limite_alerta: document.getElementById('cfg-temp-limite').value,
-      email_alerta: document.getElementById('cfg-email-alerta').value,
-      notificacoes_email: document.getElementById('cfg-notificacoes').checked,
-      modo_manutencao: document.getElementById('cfg-manutencao').checked
-    };
-
-    try {
-      const res = await fetch(API_CONFIG, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dadosConfig)
-      });
-
-      if (res.ok) {
-        alert("✅ Configurações salvas com sucesso!");
-      } else {
-        alert("❌ Falha ao salvar configurações.");
-      }
-    } catch (err) {
-      console.error("Erro ao salvar configurações:", err);
-    }
-  });
+if (document.getElementById('btn-header-notif')) {
+  document.getElementById('btn-header-notif').addEventListener('click', () => alternarAba('alertas'));
 }
-
-// -------------------------------------------------------------
-// 5. RENDERIZAÇÃO E CÁLCULO DE KPIS
-// -------------------------------------------------------------
-function render() {
-  const total = maquinas.length;
-  const online = maquinas.filter(m => m.status === 'online').length;
-  const alertas = maquinas.filter(m => m.status === 'atencao' || m.status === 'offline').length;
-  const cargaMedia = total > 0 ? Math.round(maquinas.reduce((a, b) => a + Number(b.carga), 0) / total) : 0;
-
-  // Atualização dos Indicadores (KPIs)
-  if (document.getElementById('kpi-online')) document.getElementById('kpi-online').innerText = `${online} / ${total}`;
-  if (document.getElementById('kpi-alertas')) document.getElementById('kpi-alertas').innerText = alertas;
-  if (document.getElementById('badge-alertas')) document.getElementById('badge-alertas').innerText = alertas;
-  if (document.getElementById('kpi-carga')) document.getElementById('kpi-carga').innerText = `${cargaMedia}%`;
-
-  // Renderizar Lista de Atividades Recentes
-  const listEl = document.getElementById('activity-list');
-  if (listEl) {
-    listEl.innerHTML = maquinas.map(m => `
-      <li class="activity-item">
-        <div class="activity-info">
-          <span class="status-dot ${m.status}">◉</span>
-          <strong>${m.nome}</strong> — <span>${m.msg || 'Operação registrada'}</span>
-        </div>
-        <span class="activity-time">${m.hora || '--:--'}</span>
-      </li>
-    `).join('');
-  }
-
-  // Renderizar Tabela de Máquinas
-  const tableEl = document.getElementById('table-maquinas-body');
-  if (tableEl) {
-    tableEl.innerHTML = maquinas.map(m => `
-      <tr>
-        <td><strong>${m.nome}</strong></td>
-        <td>${m.setor}</td>
-        <td>
-          <span class="status-dot ${m.status}">◉</span>
-          <span style="text-transform: capitalize">${m.status}</span>
-        </td>
-        <td>${m.temp}°C</td>
-        <td>${m.carga}%</td>
-        <td>
-          <button onclick="deletarMaquina(${m.id})" style="background:none; border:none; cursor:pointer;" title="Excluir máquina">
-            🗑️
-          </button>
-        </td>
-      </tr>
-    `).join('');
-  }
-}
-
-// -------------------------------------------------------------
-// INICIALIZAÇÃO DA APLICAÇÃO
-// -------------------------------------------------------------
-carregarMaquinas();
-carregarConfiguracoes();
