@@ -32,7 +32,7 @@ const maquinasFallback = [
   { id: 5, nome: 'Compressor Industrial', setor: 'Utilidades', status: 'offline', temperatura: 38, consumo: 90 }
 ];
 
-// MÁQUINAS
+// --- ROTAS DE MÁQUINAS ---
 app.get('/api/maquinas', async (req, res) => {
   try {
     const [rows] = await db.execute('SELECT * FROM maquinas ORDER BY id DESC');
@@ -69,7 +69,101 @@ app.delete('/api/maquinas/:id', async (req, res) => {
   }
 });
 
-// AUTENTICAÇÃO E PERFIL
+// --- ROTAS DE PRODUÇÃO ---
+app.get('/api/producao', async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT * FROM producao ORDER BY id DESC');
+    res.json(rows);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+app.post('/api/producao', async (req, res) => {
+  const { produto, maquina, esperada, realizada, produtividade } = req.body;
+  try {
+    // Note que sua tabela possui maquina_nome ou maquina, ajuste se necessário. Baseado no seu banco o campo é maquina_nome
+    const [result] = await db.execute(
+      'INSERT INTO producao (produto, maquina_nome, esperada, realizada, produtividade) VALUES (?, ?, ?, ?, ?)',
+      [produto, maquina, esperada, realizada, produtividade]
+    );
+    res.status(201).json({ id: result.insertId, ...req.body });
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao registrar lote de produção.' });
+  }
+});
+
+app.delete('/api/producao/:id', async (req, res) => {
+  try {
+    await db.execute('DELETE FROM producao WHERE id = ?', [req.params.id]);
+    res.json({ mensagem: 'Lote removido com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao remover lote.' });
+  }
+});
+
+// --- ROTAS DE SEGURANÇA SST ---
+app.get('/api/seguranca', async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT * FROM ocorrencias_sst ORDER BY id DESC');
+    res.json(rows);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+app.post('/api/seguranca', async (req, res) => {
+  const { descricao, setor, risco } = req.body;
+  try {
+    const [result] = await db.execute(
+      'INSERT INTO ocorrencias_sst (descricao, setor, risco) VALUES (?, ?, ?)',
+      [descricao, setor, risco]
+    );
+    res.status(201).json({ id: result.insertId, ...req.body });
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao registrar ocorrência SST.' });
+  }
+});
+
+app.delete('/api/seguranca/:id', async (req, res) => {
+  try {
+    await db.execute('DELETE FROM ocorrencias_sst WHERE id = ?', [req.params.id]);
+    res.json({ mensagem: 'Ocorrência removida com sucesso.' });
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao remover ocorrência.' });
+  }
+});
+
+// --- ROTAS DE CONFIGURAÇÕES ---
+app.get('/api/configuracoes', async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT * FROM configuracoes LIMIT 1');
+    res.json(rows[0] || { temp_limite_critico: 70, notif_email_status: 'ativado', intervalo_sensores_seg: 15 });
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao buscar configurações.' });
+  }
+});
+
+app.put('/api/configuracoes', async (req, res) => {
+  const { temp_limite_critico, notif_email_status, intervalo_sensores_seg } = req.body;
+  try {
+    await db.execute(
+      `INSERT INTO configuracoes (id, temp_limite_critico, notif_email_status, intervalo_sensores_seg) 
+       VALUES (1, ?, ?, ?) 
+       ON DUPLICATE KEY UPDATE 
+       temp_limite_critico = VALUES(temp_limite_critico), 
+       notif_email_status = VALUES(notif_email_status), 
+       intervalo_sensores_seg = VALUES(intervalo_sensores_seg)`,
+      [temp_limite_critico, notif_email_status, intervalo_sensores_seg]
+    );
+    res.json({ mensagem: 'Configurações atualizadas.' });
+  } catch (err) {
+    res.status(500).json({ erro: 'Erro ao salvar configurações.' });
+  }
+});
+
+
+// --- AUTENTICAÇÃO E PERFIL ---
 app.post('/api/cadastro', async (req, res) => {
   const { nome, email, senha } = req.body;
   if (!nome || !email || !senha) return res.status(400).json({ erro: 'Todos os campos são obrigatórios.' });
@@ -124,4 +218,4 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'index.html'));
 });
 
-app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Servidor EcoFactory rodando na porta ${PORT}`));

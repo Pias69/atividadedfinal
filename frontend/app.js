@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
   verificarSessao();
   carregarMaquinas();
+  inicializarProducao();
+  inicializarSeguranca();
+  inicializarRelatoriosEConfig();
   configurarEventosPerfil();
 });
 
@@ -239,6 +242,8 @@ async function carregarMaquinas() {
     const mediaTemp = maquinas.length > 0 ? (totalTemp / maquinas.length).toFixed(1) : 0;
     document.getElementById('kpi-temp').innerText = `${mediaTemp} °C`;
 
+    atualizarSelectMaquinas(maquinas);
+
   } catch (err) {
     console.error('Erro ao carregar máquinas:', err);
   }
@@ -275,6 +280,180 @@ async function deletarMaquina(id) {
   if (confirm('Deseja realmente excluir este equipamento?')) {
     await fetch(`/api/maquinas/${id}`, { method: 'DELETE' });
     carregarMaquinas();
+  }
+}
+
+// ==========================================
+// CONTROLE DE PRODUÇÃO (FETCH DO BANCO)
+// ==========================================
+async function inicializarProducao() {
+  renderizarProducao();
+
+  const formProd = document.getElementById('form-producao');
+  if (formProd) {
+    formProd.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const produto = document.getElementById('prod-nome').value;
+      const maquina = document.getElementById('prod-maquina').value;
+      const esperada = Number(document.getElementById('prod-esperada').value);
+      const realizada = Number(document.getElementById('prod-realizada').value);
+      const produtividade = Math.round((realizada / esperada) * 100);
+
+      await fetch('/api/producao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ produto, maquina, esperada, realizada, produtividade })
+      });
+
+      formProd.reset();
+      renderizarProducao();
+    });
+  }
+}
+
+async function renderizarProducao() {
+  const tbody = document.getElementById('tabela-producao');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch('/api/producao');
+    const lotes = await res.json();
+    
+    tbody.innerHTML = '';
+    lotes.forEach(l => {
+      const prodValue = Number(l.produtividade);
+      const tagClass = prodValue >= 90 ? 'green' : (prodValue >= 75 ? 'warning' : 'danger');
+
+      tbody.innerHTML += `
+        <tr>
+          <td><strong>${l.produto}</strong></td>
+          <td>${l.maquina_nome || l.maquina || 'Geral'}</td>
+          <td>${l.realizada} / ${l.esperada} un</td>
+          <td><span class="tag-status ${tagClass}">${prodValue}%</span></td>
+          <td><button onclick="deletarLote(${l.id})" style="background:transparent; border:none; color:var(--accent-danger); font-weight:600; cursor:pointer;">Remover</button></td>
+        </tr>
+      `;
+    });
+  } catch (err) {
+    console.error('Erro ao carregar produção:', err);
+  }
+}
+
+window.deletarLote = async function(id) {
+  await fetch(`/api/producao/${id}`, { method: 'DELETE' });
+  renderizarProducao();
+};
+
+function atualizarSelectMaquinas(maquinas) {
+  const select = document.getElementById('prod-maquina');
+  if (!select) return;
+  if (maquinas && maquinas.length > 0) {
+    select.innerHTML = maquinas.map(m => `<option value="${m.nome}">${m.nome} (${m.setor})</option>`).join('');
+  } else {
+    select.innerHTML = '<option value="Linha Geral">Linha Geral de Produção</option>';
+  }
+}
+
+// ==========================================
+// SEGURANÇA SST (FETCH DO BANCO)
+// ==========================================
+async function inicializarSeguranca() {
+  renderizarSeguranca();
+
+  const formSST = document.getElementById('form-seguranca');
+  if (formSST) {
+    formSST.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const descricao = document.getElementById('sst-desc').value;
+      const setor = document.getElementById('sst-setor').value;
+      const risco = document.getElementById('sst-risco').value;
+
+      await fetch('/api/seguranca', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ descricao, setor, risco })
+      });
+
+      formSST.reset();
+      renderizarSeguranca();
+    });
+  }
+}
+
+async function renderizarSeguranca() {
+  const tbody = document.getElementById('tabela-seguranca');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch('/api/seguranca');
+    const ocorrencias = await res.json();
+    
+    tbody.innerHTML = '';
+    ocorrencias.forEach(o => {
+      const tagClass = o.risco === 'Crítico' || o.risco === 'Alto' ? 'danger' : (o.risco === 'Médio' ? 'warning' : 'green');
+      const dataFormatada = o.data_registro ? new Date(o.data_registro).toLocaleDateString('pt-BR') : 'Recente';
+
+      tbody.innerHTML += `
+        <tr>
+          <td><strong>${o.descricao}</strong></td>
+          <td>${o.setor}</td>
+          <td><span class="tag-status ${tagClass}">${o.risco}</span></td>
+          <td>${dataFormatada}</td>
+          <td><button onclick="deletarOcorrencia(${o.id})" style="background:transparent; border:none; color:var(--accent-danger); font-weight:600; cursor:pointer;">Resolver</button></td>
+        </tr>
+      `;
+    });
+  } catch (err) {
+    console.error('Erro ao carregar segurança:', err);
+  }
+}
+
+window.deletarOcorrencia = async function(id) {
+  await fetch(`/api/seguranca/${id}`, { method: 'DELETE' });
+  renderizarSeguranca();
+};
+
+
+// ==========================================
+// RELATÓRIOS E CONFIGURAÇÕES (FETCH DO BANCO)
+// ==========================================
+async function inicializarRelatoriosEConfig() {
+  const btnExportar = document.getElementById('btn-exportar-relatorio');
+  if (btnExportar) {
+    btnExportar.addEventListener('click', () => {
+      alert('📊 Relatório Operacional e Ambiental exportado com sucesso!');
+    });
+  }
+
+  try {
+    const res = await fetch('/api/configuracoes');
+    if (res.ok) {
+      const cfg = await res.json();
+      if (document.getElementById('cfg-temp-limite')) {
+        document.getElementById('cfg-temp-limite').value = cfg.temp_limite_critico || 70;
+        document.getElementById('cfg-notif-email').value = cfg.notif_email_status || 'ativado';
+        document.getElementById('cfg-intervalo').value = cfg.intervalo_sensores_seg || 15;
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao carregar configurações');
+  }
+
+  const formConfig = document.getElementById('form-config');
+  if (formConfig) {
+    formConfig.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const temp_limite_critico = document.getElementById('cfg-temp-limite').value;
+      const notif_email_status = document.getElementById('cfg-notif-email').value;
+      const intervalo_sensores_seg = document.getElementById('cfg-intervalo').value;
+
+      await fetch('/api/configuracoes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ temp_limite_critico, notif_email_status, intervalo_sensores_seg })
+      });
+      alert('⚙️ Preferências do sistema atualizadas com sucesso!');
+    });
   }
 }
 

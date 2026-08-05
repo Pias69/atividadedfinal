@@ -97,7 +97,6 @@
           <!-- BOLINHA DE PERFIL -->
           <button class="profile-circle-btn" id="btn-header-perfil" title="Meu Perfil">
             <span id="header-avatar-initial">U</span>
-            <img id="header-avatar-img" src="" alt="Foto" style="display: none; width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
           </button>
         </div>
       </header>
@@ -168,15 +167,44 @@
       <!-- TAB PRODUÇÃO -->
       <div id="tab-producao" class="tab-view">
         <div class="content-box">
-          <h2>Controle de Produção</h2>
-          <p style="color: var(--text-muted); margin-top: 6px;">Monitoramento de lotes e metas de fabricação diárias.</p>
+          <div class="box-header">
+            <h2>Controle de Produção</h2>
+          </div>
+          <form id="form-producao" class="modal-form" style="margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: end;">
+            <div class="form-group"><label>Produto</label><input type="text" id="prod-nome" required></div>
+            <div class="form-group"><label>Máquina</label><select id="prod-maquina" style="padding: 12px; border-radius: 10px; border: 1px solid var(--border-color);"></select></div>
+            <div class="form-group"><label>Meta (un)</label><input type="number" id="prod-esperada" required></div>
+            <div class="form-group"><label>Realizado</label><input type="number" id="prod-realizada" required></div>
+            <button type="submit" class="btn-primary">Adicionar Lote</button>
+          </form>
+          <table class="custom-table">
+            <thead><tr><th>Produto</th><th>Máquina</th><th>Progresso</th><th>Produtividade</th><th>Ações</th></tr></thead>
+            <tbody id="tabela-producao"></tbody>
+          </table>
         </div>
       </div>
 
       <!-- TAB SEGURANÇA -->
       <div id="tab-seguranca" class="tab-view">
         <div class="content-box">
-          <h2>🛡️ Gestão de Segurança do Trabalho (SST)</h2>
+          <div class="box-header">
+            <h2>🛡️ Gestão de Segurança do Trabalho (SST)</h2>
+          </div>
+          <form id="form-seguranca" class="modal-form" style="margin-bottom: 20px; display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: end;">
+            <div class="form-group"><label>Descrição da Ocorrência</label><input type="text" id="sst-desc" required></div>
+            <div class="form-group"><label>Setor</label><input type="text" id="sst-setor" required></div>
+            <div class="form-group">
+              <label>Risco</label>
+              <select id="sst-risco" style="padding: 12px; border-radius: 10px; border: 1px solid var(--border-color);">
+                <option value="Baixo">Baixo</option><option value="Médio">Médio</option><option value="Alto">Alto</option><option value="Crítico">Crítico</option>
+              </select>
+            </div>
+            <button type="submit" class="btn-primary">Registrar</button>
+          </form>
+          <table class="custom-table">
+            <thead><tr><th>Descrição</th><th>Setor</th><th>Risco</th><th>Data</th><th>Ações</th></tr></thead>
+            <tbody id="tabela-seguranca"></tbody>
+          </table>
         </div>
       </div>
 
@@ -214,6 +242,25 @@
       <div id="tab-config" class="tab-view">
         <div class="content-box">
           <h2>Configurações do Sistema</h2>
+          <form id="form-config" class="modal-form" style="max-width: 400px; margin-top: 20px;">
+            <div class="form-group">
+              <label>Limite Crítico de Temperatura (°C)</label>
+              <input type="number" id="cfg-temp-limite" required>
+            </div>
+            <div class="form-group">
+              <label>Notificações por E-mail</label>
+              <select id="cfg-notif-email" style="padding: 12px; border-radius: 10px; border: 1px solid var(--border-color);">
+                <option value="ativado">Somente Críticas</option>
+                <option value="todas">Todas</option>
+                <option value="desativado">Desativado</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Intervalo Sensores (s)</label>
+              <input type="number" id="cfg-intervalo" required>
+            </div>
+            <button type="submit" class="btn-primary">Salvar Configurações</button>
+          </form>
         </div>
       </div>
     </main>
@@ -255,14 +302,11 @@
       </div>
 
       <div class="profile-card">
-        <!-- AVATAR CLICÁVEL -->
-        <div class="profile-avatar" id="avatar-container" title="Clique para alterar a foto do PC">
+        <div class="profile-avatar">
           <span id="profile-initials">U</span>
-          <img id="profile-img" src="" alt="Foto de Perfil" style="display: none; width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
-          <div class="avatar-overlay">📷</div>
+          <!-- A imagem base64 será exibida aqui se houver -->
+          <img id="profile-img" src="" alt="Foto" style="display:none; width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
         </div>
-
-        <input type="file" id="input-foto-perfil" accept="image/*" style="display: none;">
 
         <div class="profile-info-group">
           <label>Nome Completo</label>
